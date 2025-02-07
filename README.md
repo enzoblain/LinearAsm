@@ -30,9 +30,24 @@ git clone https://github.com/yourusername/LinearASM.git
 cd LinearASM
 ```
 
-### 2. **Build the Project** 🚀
+### 2. **Make the `build.sh` Script Executable** 🛠️
+
+Before running the **`build.sh`** script, you'll need to give it the right permissions to make it executable. To do that, run the following command:
+
+```sh
+chmod +x build.sh
+```
+
+**What’s happening here:**
+
+- The **`chmod`** command stands for **change mode**, and the **`+x`** flag adds **execute** permissions to the **`build.sh`** script.
+- Without this permission, macOS won’t allow you to run the script directly. By adding the **execute permission**, you’re telling the system that you want the script to be run as a program.
+
+### 3. **Build the Project** 🚀
 
 Once everything’s set up, **no worries about complex build steps**—you don’t need to manually run the `as` and `ld` commands. Just run the **`build.sh`** script and let it handle the heavy lifting!
+
+
 
 ```sh
 ./build.sh
