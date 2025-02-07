@@ -1,6 +1,6 @@
 # **LinearASM**
 
-Welcome to **LinearASM**! 🎉 This project brings the power of **Linear Regression** into the world of **Assembly Language**, with a focus on **ARM64** architecture. It’s an exciting journey where we dive deep into low-level programming while solving a classic machine learning problem: predicting the relationship between variables.
+Welcome to **LinearASM**! 🎉 This project brings the power of **Linear Regression** into the world of **Assembly Language**. It’s an exciting journey where we dive deep into low-level programming while solving a classic machine learning problem: predicting the relationship between variables.
 
 Whether you're a beginner or an experienced coder, this project will give you hands-on experience with **Assembly** and help you understand how math algorithms like linear regression can be executed at the hardware level. Get ready to write some **real raw code**! 💻
 
@@ -11,7 +11,7 @@ In **LinearASM**, we’re implementing the heart of **Linear Regression** in **A
 You’ll not only learn the math behind linear regression but also get a solid understanding of how to manage memory and registers at a low level. This project is **your first step** into the world of low-level programming and **machine learning** at the assembly level.
 
 ## **Key Features**
-- 🔥 **Linear Regression** written entirely in **Assembly** (ARM64).
+- 🔥 **Linear Regression** written entirely in **Assembly**.
 - ✨ **Pure assembly calculations** for slope and intercept of the regression line.
 - 🧠 A deep dive into how assembly can perform machine learning tasks.
 - 🛠️ No high-level libraries here, just pure raw power and memory management.
