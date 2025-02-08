@@ -1,7 +1,7 @@
 section .text
     global print
 
-print:                ; Need message at rsi and size at rdx
+print:                ; Need message at rsi
     mov rdi, 1
 
     xor rdx, rdx
