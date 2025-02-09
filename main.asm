@@ -14,21 +14,20 @@ section .data
     y db 5, 4, 3, 2, 1, 0
     predicted TIMES 6 db 0
 
-    max_iterations dq 1000
+    max_iterations dq -1000
     learning_rate dq 0.01
     convergence_threshold dq 0.0001
 
 section .text
     global _start
-    extern printString
     extern printInt
+    extern printString
 
 _start:
     ; Print welcome message
     lea rsi, [rel welcomemsg]
     call printString
 
-    ; Test printInt
     mov rax, [rel max_iterations]
     call printInt
 

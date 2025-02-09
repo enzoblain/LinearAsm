@@ -1,10 +1,12 @@
+section .data
+    negative_sign db '-', 0
+
 section .bss
-    buffer resb 10 ; Reserve space to store the length as string (up to 10 digits)
+    buffer resb 20
 
 section .text
-    global printString
     global printInt
-    extern _start
+    global printString
 
 ; --------------------- Print String Function ---------------------
 ; Needs to be called with rsi pointing to the string to print
@@ -28,7 +30,11 @@ done_counting:
     ret
 
 ; --------------------- Print Integer Function ---------------------
+; Needs to be called with rax containing the integer to print
 printInt:
+    cmp rax, 0                    ; Check if negative
+    jl negative_case
+
     push rax                      ; Save rax
     call intToString              ; Convert to string
 
@@ -39,27 +45,43 @@ printInt:
 
     ret
 
+negative_case:
+    neg rax                        ; Make rax positive
+    push rax                       ; Save rax
+
+    lea rsi, [rel negative_sign]
+    call printString
+
+    pop rax                        ; Restore rax
+
+    jmp printInt
+
 ; --------------------- Integer to String Conversion ---------------------
+; Needs to be called with rax containing the integer to convert
 intToString:
-    lea rdi, [rel buffer + 9]     ; Point to end of buffer
-    mov byte [rdi], 0             ; Null-terminate string
-    dec rdi                       ; Move back
+    lea rdi, [rel buffer + 9]      ; Point to end of buffer
+    mov byte [rdi], 0              ; Null-terminate string
+    dec rdi                        ; Move back
 
-    mov rcx, 10                   ; Base 10
-    test rax, rax                 ; Check if zero
-    jnz convert_loop
 
-    mov byte [rdi], '0'           ; Special case: if rax == 0
-    ret
+    continue_conversion:
+        mov rcx, 10                ; Base 10
+        test rax, rax              ; Check if zero
+        jnz convert_loop
+
+        mov byte [rdi], '0'        ; Special case: if rax == 0
+        
+        ret
 
 convert_loop:
-    xor rdx, rdx                  ; Clear rdx
-    div rcx                       ; Divide rax by 10
-    add dl, '0'                   ; Convert remainder to ASCII
-    mov [rdi], dl                 ; Store character
-    dec rdi                       ; Move backwards
+    xor rdx, rdx                   ; Clear rdx
 
-    test rax, rax                 ; Check if quotient is 0
+    div rcx                        ; Divide rax by 10
+    add dl, '0'                    ; Convert remainder to ASCII
+    mov [rdi], dl                  ; Store character
+    dec rdi                        ; Move backwards
+
+    test rax, rax                  ; Check if quotient is 0
     jnz convert_loop               ; If not, continue
 
     inc rdi                        ; Move pointer to start of number
