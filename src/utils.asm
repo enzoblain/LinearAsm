@@ -130,15 +130,15 @@ printFloat:
     lea rsi, [rel utils_point]
     call printString
 
-    leading_zero_loop:
-        ucomisd xmm1, xmm0
+    leading_zero_loop:             ; Check if there is leading zero    
+        ucomisd xmm1, xmm0         ; Compare the decimal part with the decimal part wanted
         jp done_leading_zero
-        ja done_leading_zero
-
+        ja done_leading_zero       ; If the decimal part is greater than the decimal part wanted, no leading zero
+                                   ; Else, print a leading zero
         lea rsi, [rel utils_zero]
         call printString
 
-        divsd xmm2, [rel utils_coeff]
+        divsd xmm2, [rel utils_coeff]   ; Divide the decimal part by 10 to get the next decimal part
 
     done_leading_zero:
         cvttsd2si rax, xmm1             ; Convert the decimal part to int to print it
