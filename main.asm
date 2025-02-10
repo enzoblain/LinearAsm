@@ -22,6 +22,7 @@ section .text
     global _start
     extern printInt
     extern printString
+    extern trunc
 
 _start:
     ; Print welcome message
@@ -30,6 +31,9 @@ _start:
 
     mov rax, [rel max_iterations]
     call printInt
+
+    mov rax, [rel learning_rate]
+    call trunc
 
 _exit:
     mov rdi, 0                ; Exit code 0

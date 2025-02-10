@@ -1,5 +1,6 @@
 section .data
     negative_sign db '-', 0
+    utils_backline db 0x0A, 0
 
 section .bss
     buffer resb 20
@@ -7,6 +8,7 @@ section .bss
 section .text
     global printInt
     global printString
+    global trunc
 
 ; --------------------- Print String Function ---------------------
 ; Needs to be called with rsi pointing to the string to print
@@ -30,11 +32,12 @@ done_counting:
     ret
 
 ; --------------------- Print Integer Function ---------------------
-; Needs to be called with rax containing the integer to print
+; Needs to be called with rax containing the address of the integer to print
 printInt:
     cmp rax, 0                    ; Check if negative
     jl negative_case
 
+continueInt:
     push rax                      ; Save rax
     call intToString              ; Convert to string
 
@@ -42,6 +45,9 @@ printInt:
     call printString              ; Print it
     
     pop rax                       ; Restore rax
+
+    lea rsi, [rel utils_backline]
+    call printString
 
     ret
 
@@ -54,10 +60,10 @@ negative_case:
 
     pop rax                        ; Restore rax
 
-    jmp printInt
+    jmp continueInt
 
 ; --------------------- Integer to String Conversion ---------------------
-; Needs to be called with rax containing the integer to convert
+; Needs to be called with rax containing the address of the integer to convert
 intToString:
     lea rdi, [rel buffer + 9]      ; Point to end of buffer
     mov byte [rdi], 0              ; Null-terminate string
@@ -86,4 +92,12 @@ convert_loop:
 
     inc rdi                        ; Move pointer to start of number
     
+    ret
+
+; --------------------- Truncate Double to Integer ---------------------
+; Needs to be called with rax containing the address of the double to truncate
+trunc:
+    movsd xmm1, qword [rax]         ; Load float into xmm1
+    cvtsd2si rdi, xmm1              ; Trunc float to int
+
     ret
