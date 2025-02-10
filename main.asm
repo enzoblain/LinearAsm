@@ -15,14 +15,14 @@ section .data
     predicted TIMES 6 db 0
 
     max_iterations dq -1000
-    learning_rate dq 0.01
-    convergence_threshold dq 0.0001
+    learning_rate dq 3.14
+    convergence_threshold dq 3.14
 
 section .text
     global _start
     extern printInt
     extern printString
-    extern trunc
+    extern printFloat
 
 _start:
     ; Print welcome message
@@ -32,8 +32,11 @@ _start:
     mov rax, [rel max_iterations]
     call printInt
 
-    mov rax, [rel learning_rate]
-    call trunc
+    lea rsi, [rel backline]
+    call printString
+
+    lea rax, [rel learning_rate]
+    call printFloat
 
 _exit:
     mov rdi, 0                ; Exit code 0

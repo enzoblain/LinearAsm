@@ -1,6 +1,17 @@
+%define STDIN 0
+%define STDOUT 1
+%define STDERR 2
+
+%define SYS_EXIT 0x02000001
+%define SYS_WRITE 0x02000004
+
 section .data
     negative_sign db '-', 0
     utils_backline db 0x0A, 0
+    point db '.', 0
+
+    coeff dq 10.0
+    decimalpart dq 2
 
 section .bss
     buffer resb 20
@@ -8,7 +19,7 @@ section .bss
 section .text
     global printInt
     global printString
-    global trunc
+    global printFloat
 
 ; --------------------- Print String Function ---------------------
 ; Needs to be called with rsi pointing to the string to print
@@ -25,33 +36,30 @@ count_loop:
 
 done_counting:
     mov rsi, rbx                 ; Set rsi back to his original value
-    mov rax, 0x02000004          ; sys_write (macOS)
-    mov rdi, 1                   ; STDOUT
+    mov rax, SYS_WRITE           ; sys_write (macOS)
+    mov rdi, STDOUT              ; STDOUT
     syscall                      
 
     ret
 
 ; --------------------- Print Integer Function ---------------------
-; Needs to be called with rax containing the address of the integer to print
+; Needs to be called with rax containing the integer to print
 printInt:
-    cmp rax, 0                    ; Check if negative
-    jl negative_case
+    call negative_case            ; Check sign of integer 
 
-continueInt:
-    push rax                      ; Save rax
     call intToString              ; Convert to string
 
     mov rsi, rdi                  ; Load converted string pointer
     call printString              ; Print it
-    
-    pop rax                       ; Restore rax
-
-    lea rsi, [rel utils_backline]
-    call printString
 
     ret
 
+; --------------------- Check sign of integer ---------------------
+; Need to be called with rax containing the integer to check
 negative_case:
+    cmp rax, 0                    ; Check if negative
+    jge positive_case
+
     neg rax                        ; Make rax positive
     push rax                       ; Save rax
 
@@ -60,10 +68,11 @@ negative_case:
 
     pop rax                        ; Restore rax
 
-    jmp continueInt
+positive_case:
+    ret
 
 ; --------------------- Integer to String Conversion ---------------------
-; Needs to be called with rax containing the address of the integer to convert
+; Needs to be called with rax containing the integer to convert
 intToString:
     lea rdi, [rel buffer + 9]      ; Point to end of buffer
     mov byte [rdi], 0              ; Null-terminate string
@@ -92,12 +101,35 @@ convert_loop:
 
     inc rdi                        ; Move pointer to start of number
     
-    ret
+    ret  
 
-; --------------------- Truncate Double to Integer ---------------------
-; Needs to be called with rax containing the address of the double to truncate
-trunc:
-    movsd xmm1, qword [rax]         ; Load float into xmm1
-    cvtsd2si rdi, xmm1              ; Trunc float to int
+; --------------------- Print Float Function ---------------------
+; Needs to be called with rax containing the adress of the float to print
+printFloat:
+    movsd xmm0, [rel coeff]        
+
+    mov rsi, [rel decimalpart]
+
+    decimal_coeff_loop:            ; Get 10 power of decimal part wanted
+        mulsd xmm0, [rel coeff]
+        dec rsi
+        cmp rsi, 1
+        jnz decimal_coeff_loop
+   
+    movsd xmm1, qword [rax]        ; Load float to xmm1
+    cvtsd2si rax, xmm1             ; Convert float to int (trunc)
+    cvtsi2sd xmm2, rax             ; Store the entire part 
+
+    subsd xmm1, xmm2               ; Get the decimal part
+    mulsd xmm1, xmm0               ; Multiply the decimal part by 10^decimalpart to get the wanted decimal part
+
+    cvtsd2si rax, xmm2             ; Convert the entire part to int to print it
+    call printInt
+
+    lea rsi, [rel point]
+    call printString
+
+    cvttsd2si rax, xmm1             ; Convert the decimal part to int to print it
+    call printInt
 
     ret
