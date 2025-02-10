@@ -9,6 +9,7 @@ section .data
     utils_negative_sign db '-', 0
     utils_backline db 0x0A, 0
     utils_point db '.', 0
+    utils_zero db '0', 0
 
     utils_coeff dq 10.0
     utils_decimalpart dq 2
@@ -129,7 +130,18 @@ printFloat:
     lea rsi, [rel utils_point]
     call printString
 
-    cvttsd2si rax, xmm1             ; Convert the decimal part to int to print it
-    call printInt
+    leading_zero_loop:
+        ucomisd xmm1, xmm0
+        jp done_leading_zero
+        ja done_leading_zero
+
+        lea rsi, [rel utils_zero]
+        call printString
+
+        divsd xmm2, [rel utils_coeff]
+
+    done_leading_zero:
+        cvttsd2si rax, xmm1             ; Convert the decimal part to int to print it
+        call printInt
 
     ret

@@ -15,8 +15,8 @@ section .data
     predicted TIMES 6 db 0
 
     max_iterations dq -1000
-    learning_rate dq 3.14
-    convergence_threshold dq 3.14
+    learning_rate dq 0.01
+    convergence_threshold dq 0.00001
 
 section .text
     global _start
