@@ -10,6 +10,8 @@ section .data
     utils_backline db 0x0A, 0
     utils_point db '.', 0
     utils_zero db '0', 0
+    utils_zero_float dq 0.0
+    utils_minus_one dq -1.0
 
     utils_coeff dq 10.0
     utils_decimalpart dq 2
@@ -46,7 +48,7 @@ done_counting:
 ; --------------------- Print Integer Function ---------------------
 ; Needs to be called with rax containing the integer to print
 printInt:
-    call negative_case            ; Check sign of integer 
+    call negative_case_integer            ; Check sign of integer 
 
     call intToString              ; Convert to string
 
@@ -57,7 +59,7 @@ printInt:
 
 ; --------------------- Check sign of integer ---------------------
 ; Need to be called with rax containing the integer to check
-negative_case:
+negative_case_integer:
     cmp rax, 0                    ; Check if negative
     jge positive_case
 
@@ -71,6 +73,22 @@ negative_case:
 
 positive_case:
     ret
+
+; --------------------- Check sign of float ---------------------
+; Need to be called with xmm1 containing the float to check
+negative_case_float:
+    movsd xmm3, qword [rel utils_zero_float]
+
+    ucomisd xmm1, xmm3                 ; Compare the float with 0
+    ja positive_case_float
+
+    lea rsi, [rel utils_negative_sign]
+    call printString
+
+    mulsd xmm1, qword [rel utils_minus_one]     ; Make xmm1 positive
+
+positive_case_float:
+    ret 
 
 ; --------------------- Integer to String Conversion ---------------------
 ; Needs to be called with rax containing the integer to convert
@@ -118,6 +136,9 @@ printFloat:
         jnz decimal_coeff_loop
    
     movsd xmm1, qword [rax]        ; Load float to xmm1
+
+    call negative_case_float        ; Check sign of float
+
     cvtsd2si rax, xmm1             ; Convert float to int (trunc)
     cvtsi2sd xmm2, rax             ; Store the entire part 
 
@@ -130,6 +151,8 @@ printFloat:
     lea rsi, [rel utils_point]
     call printString
 
+    divsd xmm0, [rel utils_coeff]
+
     leading_zero_loop:             ; Check if there is leading zero    
         ucomisd xmm1, xmm0         ; Compare the decimal part with the decimal part wanted
         jp done_leading_zero
@@ -138,7 +161,7 @@ printFloat:
         lea rsi, [rel utils_zero]
         call printString
 
-        divsd xmm2, [rel utils_coeff]   ; Divide the decimal part by 10 to get the next decimal part
+        divsd xmm0, [rel utils_coeff]   ; Divide the decimal part by 10 to get the next decimal part
 
     done_leading_zero:
         cvttsd2si rax, xmm1             ; Convert the decimal part to int to print it

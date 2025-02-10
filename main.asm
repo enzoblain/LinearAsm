@@ -29,15 +29,6 @@ _start:
     lea rsi, [rel welcomemsg]
     call printString
 
-    mov rax, [rel max_iterations]
-    call printInt
-
-    lea rsi, [rel backline]
-    call printString
-
-    lea rax, [rel learning_rate]
-    call printFloat
-
 _exit:
     mov rdi, 0                ; Exit code 0
     mov rax, 0x02000001       ; Syscall number for sys_exit (macOS)
