@@ -6,12 +6,12 @@
 %define SYS_WRITE 0x02000004
 
 section .data
-    negative_sign db '-', 0
+    utils_negative_sign db '-', 0
     utils_backline db 0x0A, 0
-    point db '.', 0
+    utils_point db '.', 0
 
-    coeff dq 10.0
-    decimalpart dq 2
+    utils_coeff dq 10.0
+    utils_decimalpart dq 2
 
 section .bss
     buffer resb 20
@@ -63,7 +63,7 @@ negative_case:
     neg rax                        ; Make rax positive
     push rax                       ; Save rax
 
-    lea rsi, [rel negative_sign]
+    lea rsi, [rel utils_negative_sign]
     call printString
 
     pop rax                        ; Restore rax
@@ -106,12 +106,12 @@ convert_loop:
 ; --------------------- Print Float Function ---------------------
 ; Needs to be called with rax containing the adress of the float to print
 printFloat:
-    movsd xmm0, [rel coeff]        
+    movsd xmm0, [rel utils_coeff]        
 
-    mov rsi, [rel decimalpart]
+    mov rsi, [rel utils_decimalpart]
 
     decimal_coeff_loop:            ; Get 10 power of decimal part wanted
-        mulsd xmm0, [rel coeff]
+        mulsd xmm0, [rel utils_coeff]
         dec rsi
         cmp rsi, 1
         jnz decimal_coeff_loop
@@ -126,7 +126,7 @@ printFloat:
     cvtsd2si rax, xmm2             ; Convert the entire part to int to print it
     call printInt
 
-    lea rsi, [rel point]
+    lea rsi, [rel utils_point]
     call printString
 
     cvttsd2si rax, xmm1             ; Convert the decimal part to int to print it
