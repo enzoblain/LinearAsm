@@ -146,7 +146,7 @@ printFloat:
     cvtsi2sd xmm2, rax             ; Store the entire part 
 
     ucomisd xmm1, xmm2             ; Compare the float with the entire part
-    ja good_trunc                  
+    jae good_trunc                  
 
     addsd xmm2, qword [rel utils_minus_one] ; If the float is less than the entire part, decrement the entire part because the trunc is wrong
 
@@ -164,7 +164,6 @@ good_trunc:
 
     leading_zero_loop:             ; Check if there is leading zero    
         ucomisd xmm1, xmm0         ; Compare the decimal part with the decimal part wanted
-        jp done_leading_zero
         ja done_leading_zero       ; If the decimal part is greater than the decimal part wanted, no leading zero
                                    ; Else, print a leading zero
         lea rsi, [rel utils_zero]
