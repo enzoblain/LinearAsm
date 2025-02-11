@@ -9,6 +9,7 @@ section .data
     utils_negative_sign db '-', 0
     utils_backline db 0x0A, 0
     utils_point db '.', 0
+    utils_space db ' ', 0
     utils_zero db '0', 0
     utils_zero_float dq 0.0
     utils_minus_one dq -1.0
@@ -23,6 +24,7 @@ section .text
     global printInt
     global printString
     global printFloat
+    global printIntegerArray
 
 ; --------------------- Print String Function ---------------------
 ; Needs to be called with rsi pointing to the string to print
@@ -168,3 +170,38 @@ printFloat:
         call printInt
 
     ret
+
+; --------------------- Print Integer Array Function ---------------------
+; Needs to be called with rdi pointing to the array to print
+printIntegerArray:
+    xor rdx, rdx                     ; Reset counter   
+
+    loop_array:
+        push rdx
+        push rdi
+
+        lea rax, [rdi]               ; Load array pointer
+        shl rdx, 3                   ; Multiply index by 8 (because of qword)
+        add rax, rdx                 ; Add index to pointer to get the address of the element
+
+        cmp qword [rax], 0x0A        ; Check for backline -> end of array (convention)
+        je end_loop_array
+
+        mov rax, [rax]               ; Load element
+        call printInt      
+
+        lea rsi, [rel utils_space]
+        call printString
+
+        pop rdi
+        pop rdx
+
+        inc rdx
+
+        jmp loop_array
+
+    end_loop_array: 
+        pop rdi
+        pop rdx
+
+        ret
