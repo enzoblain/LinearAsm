@@ -24,7 +24,8 @@ section .text
     global printInt
     global printString
     global printFloat
-    global printIntegerArray
+    global printIntArray
+    global printFloatArray
 
 ; --------------------- Print String Function ---------------------
 ; Needs to be called with rsi pointing to the string to print
@@ -173,10 +174,10 @@ printFloat:
 
 ; --------------------- Print Integer Array Function ---------------------
 ; Needs to be called with rdi pointing to the array to print
-printIntegerArray:
+printIntArray:
     xor rdx, rdx                     ; Reset counter   
 
-    loop_array:
+    loopIntArray:
         push rdx
         push rdi
 
@@ -185,7 +186,7 @@ printIntegerArray:
         add rax, rdx                 ; Add index to pointer to get the address of the element
 
         cmp qword [rax], 0x0A        ; Check for backline -> end of array (convention)
-        je end_loop_array
+        je endLoopIntArray
 
         mov rax, [rax]               ; Load element
         call printInt      
@@ -198,9 +199,43 @@ printIntegerArray:
 
         inc rdx
 
-        jmp loop_array
+        jmp loopIntArray
 
-    end_loop_array: 
+    endLoopIntArray: 
+        pop rdi
+        pop rdx
+
+        ret
+
+; --------------------- Print Float Array Function ---------------------
+; Needs to be called with rdi pointing to the array to print
+printFloatArray:
+    xor rdx, rdx                     ; Reset counter   
+
+    loopFloatArray:
+        push rdx
+        push rdi
+
+        lea rax, [rdi]               ; Load array pointer
+        shl rdx, 3                   ; Multiply index by 8 (because of qword)
+        add rax, rdx                 ; Add index to pointer to get the address of the element
+
+        cmp qword [rax], 0x0A        ; Check for backline -> end of array (convention)
+        je endloopFloatArray
+
+        call printFloat      
+
+        lea rsi, [rel utils_space]
+        call printString
+
+        pop rdi
+        pop rdx
+
+        inc rdx
+
+        jmp loopFloatArray
+
+    endloopFloatArray: 
         pop rdi
         pop rdx
 
