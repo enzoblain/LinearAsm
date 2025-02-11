@@ -10,29 +10,29 @@ section .data
     points db ':', 0
     backline db 0x0A, 0
 
-    x dq 1.0, 2.0, 3.1, 4.0, 5.0, 0x0A
-    y dq 5, 4, 3, 2, 1, 0x0A
-    predicted TIMES 6 db 0
-
-    max_iterations dq -1000
-    learning_rate dq 0.01
-    convergence_threshold dq 0.00001
+    x dq 1.0, 2.0, 3.0, 4.0, 5.0, 0x0A
+    y dq 5.0, 4.0, 3., 2, 1, 0x0A
 
 section .text
     global _start
+
+    ; Import functions from utils.asm
     extern printInt
     extern printString
     extern printFloat
     extern printIntArray
     extern printFloatArray
 
+    extern linearRegression
+
 _start:
     ; Print welcome message
     lea rsi, [rel welcomemsg]
     call printString
 
-    lea rdi, [rel x]
-    call printFloatArray
+    lea r8, [rel x]
+    lea r9, [rel y]
+    call linearRegression
 
 _exit:
     mov rdi, 0                ; Exit code 0
