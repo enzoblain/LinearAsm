@@ -80,15 +80,14 @@ positive_case:
 ; --------------------- Check sign of float ---------------------
 ; Need to be called with xmm1 containing the float to check
 negative_case_float:
-    movsd xmm3, qword [rel utils_zero_float]
-
-    ucomisd xmm1, xmm3                 ; Compare the float with 0
+    cmp rax, 0
     jge positive_case_float
 
     lea rsi, [rel utils_negative_sign]
     call printString
 
-    mulsd xmm1, qword [rel utils_minus_one]     ; Make xmm1 positive
+    mulsd xmm1, qword [rel utils_minus_one] ; If the float is negative, make the entire part positive
+    mulsd xmm2, qword [rel utils_minus_one] ; If the float is negative, make the entire part positive
 
 positive_case_float:
     ret 
@@ -140,10 +139,10 @@ printFloat:
    
     movsd xmm1, qword [rax]        ; Load float to xmm1
 
-    call negative_case_float        ; Check sign of float
-
     cvtsd2si rax, xmm1             ; Convert float to int (trunc)
     cvtsi2sd xmm2, rax             ; Store the entire part 
+
+    call negative_case_float       ; Check sign of float
 
     ucomisd xmm1, xmm2             ; Compare the float with the entire part
     jae good_trunc                  
