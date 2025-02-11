@@ -68,14 +68,14 @@ printString:
     xor rcx, rcx                                  ; Reset counter
     mov rbx, rdi                                  ; Copy string pointer to preserve rsi
 
-count_loop:
+countLengthLoop:
     cmp byte [rdi + rcx], 0                       ; Check for null terminator -> end of string
-    je done_counting                              ; If null terminator, done counting
+    je doneCountingLength                              ; If null terminator, done counting
 
     inc rcx                                       ; Increment counter
-    jmp count_loop                                ; Loop
+    jmp countLengthLoop                                ; Loop
 
-done_counting:
+doneCountingLength:
     mov rdx, rcx                                  ; Set rdx to the length of the string
     mov rsi, rbx                                  ; Set rsi to the string pointer
     mov rax, SYS_WRITE                            ; sys_write (macOS)
@@ -91,7 +91,7 @@ printInt:
     cmp rdi, 0                                    ; Check if zero
     je printZero                                  ; If zero, print zero
 
-    call negative_case_integer                    ; Check sign of integer 
+    call checkNegativeInt                    ; Check sign of integer 
 
     mov rdi, rax                                  ; Load integer to print
     call intToString                              ; Convert to string
@@ -113,18 +113,18 @@ printFloat:
     movsd xmm0, [rel utils_float_one]             ; Load 10 to xmm0     
     mov rcx, [rel utils_decimalpart]              ; Load decimal part wanted to rsi
 
-    decimal_coeff_loop:                           ; Get 10 power of decimal part wanted
+    getDecimalCoeffLoop:                           ; Get 10 power of decimal part wanted
         mulsd xmm0, [rel utils_float_ten]         ; Multiply xmm0 by 10
         dec rcx                                   ; Decrement rcx
         cmp rcx, 0                                ; Check if no more ten power to get
-        jnz decimal_coeff_loop                    ; If not, loop
+        jnz getDecimalCoeffLoop                    ; If not, loop
    
     movsd xmm1, qword [rdi]                       ; Load float to xmm1
     cvtsd2si rax, xmm1                            ; Convert float to int (trunc)
     cvtsi2sd xmm2, rax                            ; Store the entire part 
 
     mov rdi, rax                                  ; Load the entire part to rdi
-    call negative_case_float                      ; Check sign of float
+    call checkNegativeFloat                      ; Check sign of float
 
     ucomisd xmm1, xmm2                            ; Compare the float with the entire part
     jae good_trunc                                ; If the float is greater or equal to the entire part, the trunc is correct 
@@ -148,16 +148,16 @@ good_trunc:
 
     divsd xmm0, [rel utils_float_ten]             ; Divide the decimal part by 10 to get the next decimal part
 
-    leading_zero_loop:
+    leadingZeroLoop:
         ucomisd xmm1, xmm0                        ; Compare the decimal part with the decimal part wanted
-        ja done_leading_zero                      ; If the decimal part is greater than the decimal part wanted, no leading zero
+        ja doneLeadingZero                      ; If the decimal part is greater than the decimal part wanted, no leading zero
                                                   ; Else, print a leading zero
         lea rdi, [rel utils_string_zero]          ; Load the zero
         call printString                          ; Print the zero
 
         divsd xmm0, [rel utils_float_ten]         ; Divide the decimal part by 10 to get the next decimal part
 
-    done_leading_zero:
+    doneLeadingZero:
         cvttsd2si rax, xmm1                       ; Convert the decimal part to int to print it
         sub rsp, 8                                ; Allocate space for the decimal part
         mov [rsp], rax                            ; Save the decimal part
@@ -171,9 +171,9 @@ good_trunc:
 
 ; --------------------- Check sign of integer ---------------------
 ; Need to be called with rdi containing the integer to check
-negative_case_integer:
+checkNegativeInt:
     cmp rdi, 0                                    ; Check if negative
-    jge positive_case                             ; If not, jump to positive case
+    jge positiveCaseInt                             ; If not, jump to positive case
 
     neg rdi                                       ; Make the integer positive
     push rdi                                      ; Save the positive integer
@@ -183,16 +183,16 @@ negative_case_integer:
 
     pop rdi                                       ; Restore rax
 
-positive_case:
+positiveCaseInt:
     mov rax, rdi                                  ; Return the positive integer
 
     ret
 
 ; --------------------- Check sign of float ---------------------
 ; Need to be called with rdi containing the entire part of the float
-negative_case_float:
+checkNegativeFloat:
     cmp rdi, 0                                    ; Check if negative
-    jge positive_case_float                       ; If not, jump to positive case
+    jge positiveCaseFloat                       ; If not, jump to positive case
 
     lea rdi, [rel utils_negative_sign]            ; Load negative sign string
     call printString                              ; Print it
@@ -200,7 +200,7 @@ negative_case_float:
     mulsd xmm1, qword [rel utils_float_minus_one] ; If the float is negative, make the number positive
     mulsd xmm2, qword [rel utils_float_minus_one] ; If the float is negative, make the entire part positive
 
-positive_case_float:
+positiveCaseFloat:
     ret 
 
 ; --------------------- Integer to String Conversion ---------------------
@@ -211,16 +211,16 @@ intToString:
     mov byte [rdi], 0                             ; Null-terminate string
     dec rdi                                       ; Move back
 
-    continue_conversion:
+    continueConversion:
         mov rcx, 10                               ; Base 10
         test rax, rax                             ; Check if zero
-        jnz convert_loop
+        jnz convertLoop
 
         mov byte [rdi], '0'                       ; Special case: if rax == 0
         
         ret
 
-convert_loop:
+convertLoop:
     xor rdx, rdx                                  ; Clear rdx
 
     div rcx                                       ; Divide rax by 10
@@ -229,7 +229,7 @@ convert_loop:
     dec rdi                                       ; Move backwards
 
     test rax, rax                                 ; Check if quotient is 0
-    jnz convert_loop                              ; If not, continue
+    jnz convertLoop                              ; If not, continue
 
     inc rdi                                       ; Move pointer to start of number
 
