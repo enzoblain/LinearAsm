@@ -1,3 +1,4 @@
+; Constants
 %define STDIN 0
 %define STDOUT 1
 %define STDERR 2
@@ -6,21 +7,27 @@
 %define SYS_WRITE 0x02000004
 
 section .data
-    utils_negative_sign db '-', 0
+    ; Define strings that would be used
     utils_backline db 0x0A, 0
+    utils_negative_sign db '-', 0
     utils_point db '.', 0
     utils_space db ' ', 0
-    utils_zero db '0', 0
-    utils_zero_float dq 0.0
-    utils_minus_one dq -1.0
+    utils_string_zero db '0', 0
 
-    utils_coeff dq 10.0
-    utils_decimalpart dq 2
+    ; Define numbers that would be used
+    utils_float_minus_one dq -1.0
+    utils_float_one dq 1.0
+    utils_float_ten dq 10.0
+    utils_float_zero dq 0.0
+
+    ; Define the coefficient for the decimal part
+    utils_decimalpart dq 2                        ; Number of decimal part wanted
 
 section .bss
-    buffer resb 20
+    buffer resb 20                                ; Buffer for integer to string conversion
 
 section .text
+    ; Export functions
     global printInt
     global printString
     global printFloat
@@ -28,66 +35,142 @@ section .text
     global printFloatArray
 
 ; --------------------- Print String Function ---------------------
-; Needs to be called with rsi pointing to the string to print
+; Needs to be called with rdi pointing to the string to print
 printString:
-    mov rdx, 0                   ; Reset length counter
-    mov rbx, rsi                 ; Copy string pointer to preserve rsi
+    xor rcx, rcx                                  ; Reset counter
+    mov rbx, rdi                                  ; Copy string pointer to preserve rsi
 
 count_loop:
-    cmp byte [rsi + rdx], 0      ; Check for null terminator -> end of string
-    je done_counting
+    cmp byte [rdi + rcx], 0                       ; Check for null terminator -> end of string
+    je done_counting                              ; If null terminator, done counting
 
-    inc rdx                      
-    jmp count_loop
+    inc rcx                                       ; Increment counter
+    jmp count_loop                                ; Loop
 
 done_counting:
-    mov rsi, rbx                 ; Set rsi back to his original value
-    mov rax, SYS_WRITE           ; sys_write (macOS)
-    mov rdi, STDOUT              ; STDOUT
-    syscall                      
+    mov rdx, rcx                                  ; Set rdx to the length of the string
+    mov rsi, rbx                                  ; Set rsi to the string pointer
+    mov rax, SYS_WRITE                            ; sys_write (macOS)
+    mov rdi, STDOUT                               ; STDOUT
+    syscall                                       ; Call syscall
 
     ret
 
 ; --------------------- Print Integer Function ---------------------
-; Needs to be called with rax containing the integer to print
+; Needs to be called with rdi pointing to the integer to print
 printInt:
-    call negative_case_integer            ; Check sign of integer 
+    mov rdi, [rdi]                                ; Load integer
+    cmp rdi, 0                                    ; Check if zero
+    je printZero                                  ; If zero, print zero
 
-    call intToString              ; Convert to string
+    call negative_case_integer                    ; Check sign of integer 
 
-    mov rsi, rdi                  ; Load converted string pointer
-    call printString              ; Print it
+    mov rdi, rax                                  ; Load integer to print
+    call intToString                              ; Convert to string
+
+    mov rdi, rax                                  ; Load address of string
+    call printString                              ; Print it
+
+    ret
+
+printZero:
+    lea rdi, [rel utils_string_zero]              ; Load zero
+    call printString                              ; Print it
+
+    ret
+; --------------------- Print Float Function ---------------------
+; Needs to be called with rdi pointing to the float to print
+printFloat:
+    ; Define decimal part wanted 
+    movsd xmm0, [rel utils_float_one]             ; Load 10 to xmm0     
+    mov rcx, [rel utils_decimalpart]              ; Load decimal part wanted to rsi
+
+    decimal_coeff_loop:                           ; Get 10 power of decimal part wanted
+        mulsd xmm0, [rel utils_float_ten]         ; Multiply xmm0 by 10
+        dec rcx                                   ; Decrement rcx
+        cmp rcx, 0                                ; Check if no more ten power to get
+        jnz decimal_coeff_loop                    ; If not, loop
+   
+    movsd xmm1, qword [rdi]                       ; Load float to xmm1
+    cvtsd2si rax, xmm1                            ; Convert float to int (trunc)
+    cvtsi2sd xmm2, rax                            ; Store the entire part 
+
+    mov rdi, rax                                  ; Load the entire part to rdi
+    call negative_case_float                      ; Check sign of float
+
+    ucomisd xmm1, xmm2                            ; Compare the float with the entire part
+    jae good_trunc                                ; If the float is greater or equal to the entire part, the trunc is correct 
+
+    addsd xmm2, qword [rel utils_float_minus_one] ; If the float is less than the entire part, decrement the entire part because the trunc is wrong
+    ; Sometimes the trunc is wrong because of the floating point representation
+
+good_trunc:
+    subsd xmm1, xmm2                              ; Get the decimal part
+    mulsd xmm1, xmm0                              ; Multiply the decimal part by 10^decimalpart to get the wanted decimal part
+
+    cvttsd2si rax, xmm2                           ; Convert the entire part to int to print it
+    sub rsp, 8                                    ; Allocate space for the entire part
+    mov [rsp], rax                                ; Save the entire part
+    lea rdi, [rsp]                                ; Load the address of the entire part
+    call printInt                                 ; Print the entire part
+    add rsp, 8                                    ; Free the space for the entire part
+
+    lea rdi, [rel utils_point]                    ; Load the point
+    call printString                              ; Print the point
+
+    divsd xmm0, [rel utils_float_ten]             ; Divide the decimal part by 10 to get the next decimal part
+
+    leading_zero_loop:
+        ucomisd xmm1, xmm0                        ; Compare the decimal part with the decimal part wanted
+        ja done_leading_zero                      ; If the decimal part is greater than the decimal part wanted, no leading zero
+                                                  ; Else, print a leading zero
+        lea rdi, [rel utils_string_zero]          ; Load the zero
+        call printString                          ; Print the zero
+
+        divsd xmm0, [rel utils_float_ten]         ; Divide the decimal part by 10 to get the next decimal part
+
+    done_leading_zero:
+        cvttsd2si rax, xmm1                       ; Convert the decimal part to int to print it
+        sub rsp, 8                                ; Allocate space for the decimal part
+        mov [rsp], rax                            ; Save the decimal part
+        lea rdi, [rsp]                            ; Load the address of the decimal part
+        call printInt                             ; Print the decimal part
+        add rsp, 8                                ; Free the space for the decimal part
+
+        ret
 
     ret
 
 ; --------------------- Check sign of integer ---------------------
-; Need to be called with rax containing the integer to check
+; Need to be called with rdi containing the integer to check
 negative_case_integer:
-    cmp rax, 0                    ; Check if negative
-    jge positive_case
+    cmp rdi, 0                                    ; Check if negative
+    jge positive_case                             ; If not, jump to positive case
 
-    neg rax                        ; Make rax positive
-    push rax                       ; Save rax
+    neg rdi                                       ; Make the integer positive
+    push rdi                                      ; Save the positive integer
 
-    lea rsi, [rel utils_negative_sign]
-    call printString
+    lea rdi, [rel utils_negative_sign]            ; Load negative sign string
+    call printString                              ; Print it
 
-    pop rax                        ; Restore rax
+    pop rdi                                       ; Restore rax
 
 positive_case:
+    mov rax, rdi                                  ; Return the positive integer
+
     ret
 
 ; --------------------- Check sign of float ---------------------
-; Need to be called with xmm1 containing the float to check
+; Need to be called with rdi containing the entire part of the float
 negative_case_float:
-    cmp rax, 0
-    jge positive_case_float
+    cmp rdi, 0                                    ; Check if negative
+    jge positive_case_float                       ; If not, jump to positive case
 
-    lea rsi, [rel utils_negative_sign]
-    call printString
+    lea rdi, [rel utils_negative_sign]            ; Load negative sign string
+    call printString                              ; Print it
 
-    mulsd xmm1, qword [rel utils_minus_one] ; If the float is negative, make the entire part positive
-    mulsd xmm2, qword [rel utils_minus_one] ; If the float is negative, make the entire part positive
+    mulsd xmm1, qword [rel utils_float_minus_one] ; If the float is negative, make the number positive
+    mulsd xmm2, qword [rel utils_float_minus_one] ; If the float is negative, make the entire part positive
 
 positive_case_float:
     ret 
@@ -95,152 +178,94 @@ positive_case_float:
 ; --------------------- Integer to String Conversion ---------------------
 ; Needs to be called with rax containing the integer to convert
 intToString:
-    lea rdi, [rel buffer + 9]      ; Point to end of buffer
-    mov byte [rdi], 0              ; Null-terminate string
-    dec rdi                        ; Move back
-
+    mov rax, rdi                                  ; Load integer to convert
+    lea rdi, [rel buffer + 9]                     ; Point to end of buffer
+    mov byte [rdi], 0                             ; Null-terminate string
+    dec rdi                                       ; Move back
 
     continue_conversion:
-        mov rcx, 10                ; Base 10
-        test rax, rax              ; Check if zero
+        mov rcx, 10                               ; Base 10
+        test rax, rax                             ; Check if zero
         jnz convert_loop
 
-        mov byte [rdi], '0'        ; Special case: if rax == 0
+        mov byte [rdi], '0'                       ; Special case: if rax == 0
         
         ret
 
 convert_loop:
-    xor rdx, rdx                   ; Clear rdx
+    xor rdx, rdx                                  ; Clear rdx
 
-    div rcx                        ; Divide rax by 10
-    add dl, '0'                    ; Convert remainder to ASCII
-    mov [rdi], dl                  ; Store character
-    dec rdi                        ; Move backwards
+    div rcx                                       ; Divide rax by 10
+    add dl, '0'                                   ; Convert remainder to ASCII
+    mov [rdi], dl                                 ; Store character
+    dec rdi                                       ; Move backwards
 
-    test rax, rax                  ; Check if quotient is 0
-    jnz convert_loop               ; If not, continue
+    test rax, rax                                 ; Check if quotient is 0
+    jnz convert_loop                              ; If not, continue
 
-    inc rdi                        ; Move pointer to start of number
+    inc rdi                                       ; Move pointer to start of number
+
+    mov rax, rdi                                  ; Return pointer to start of number
     
     ret  
 
-; --------------------- Print Float Function ---------------------
-; Needs to be called with rax containing the adress of the float to print
-printFloat:
-    movsd xmm0, [rel utils_coeff]        
-
-    mov rsi, [rel utils_decimalpart]
-
-    decimal_coeff_loop:            ; Get 10 power of decimal part wanted
-        mulsd xmm0, [rel utils_coeff]
-        dec rsi
-        cmp rsi, 1
-        jnz decimal_coeff_loop
-   
-    movsd xmm1, qword [rax]        ; Load float to xmm1
-
-    cvtsd2si rax, xmm1             ; Convert float to int (trunc)
-    cvtsi2sd xmm2, rax             ; Store the entire part 
-
-    call negative_case_float       ; Check sign of float
-
-    ucomisd xmm1, xmm2             ; Compare the float with the entire part
-    jae good_trunc                  
-
-    addsd xmm2, qword [rel utils_minus_one] ; If the float is less than the entire part, decrement the entire part because the trunc is wrong
-
-good_trunc:
-    subsd xmm1, xmm2               ; Get the decimal part
-    mulsd xmm1, xmm0               ; Multiply the decimal part by 10^decimalpart to get the wanted decimal part
-
-    cvtsd2si rax, xmm2             ; Convert the entire part to int to print it
-    call printInt
-
-    lea rsi, [rel utils_point]
-    call printString
-
-    divsd xmm0, [rel utils_coeff]
-
-    leading_zero_loop:             ; Check if there is leading zero    
-        ucomisd xmm1, xmm0         ; Compare the decimal part with the decimal part wanted
-        ja done_leading_zero       ; If the decimal part is greater than the decimal part wanted, no leading zero
-                                   ; Else, print a leading zero
-        lea rsi, [rel utils_zero]
-        call printString
-
-        divsd xmm0, [rel utils_coeff]   ; Divide the decimal part by 10 to get the next decimal part
-
-    done_leading_zero:
-        cvttsd2si rax, xmm1             ; Convert the decimal part to int to print it
-        call printInt
-
-    ret
 
 ; --------------------- Print Integer Array Function ---------------------
 ; Needs to be called with rdi pointing to the array to print
 printIntArray:
-    xor rdx, rdx                     ; Reset counter   
+    xor rcx, rcx                                  ; Reset counter   
 
     loopIntArray:
-        push rdx
-        push rdi
+        lea rax, [rdi + rcx * 8]                  ; Load array pointer to the rdx element
 
-        lea rax, [rdi]               ; Load array pointer
-        shl rdx, 3                   ; Multiply index by 8 (because of qword)
-        add rax, rdx                 ; Add index to pointer to get the address of the element
+        cmp qword [rax], 0x0A                     ; Check for backline
+        je endLoopIntArray                        ; If backline, end of array (convention)
+        
+        push rcx                                  ; Save counter
+        push rdi                                  ; Save array pointer
 
-        cmp qword [rax], 0x0A        ; Check for backline -> end of array (convention)
-        je endLoopIntArray
+        lea rdi, [rax]                            ; Load adress of element
+        call printInt                             ; Print element
 
-        mov rax, [rax]               ; Load element
-        call printInt      
+        lea rdi, [rel utils_space]                ; Load space
+        call printString                          ; Print space
 
-        lea rsi, [rel utils_space]
-        call printString
+        pop rdi                                   ; Restore array pointer
+        pop rcx                                   ; Restore counter
+        inc rcx                                   ; Increment counter
 
-        pop rdi
-        pop rdx
-
-        inc rdx
-
-        jmp loopIntArray
+        jmp loopIntArray                          ; Loop
 
     endLoopIntArray: 
-        pop rdi
-        pop rdx
 
         ret
 
 ; --------------------- Print Float Array Function ---------------------
 ; Needs to be called with rdi pointing to the array to print
 printFloatArray:
-    xor rdx, rdx                     ; Reset counter   
+    xor rcx, rcx                                  ; Reset counter   
 
     loopFloatArray:
-        push rdx
-        push rdi
+        lea rax, [rdi + rcx * 8]                  ; Load array pointer to the rdx element
 
-        lea rax, [rdi]               ; Load array pointer
-        shl rdx, 3                   ; Multiply index by 8 (because of qword)
-        add rax, rdx                 ; Add index to pointer to get the address of the element
-
-        cmp qword [rax], 0x0A        ; Check for backline -> end of array (convention)
+        cmp qword [rax], 0x0A                     ; Check for backline -> end of array (convention)
         je endloopFloatArray
 
-        call printFloat      
+        push rcx                                  ; Save counter
+        push rdi                                  ; Save array pointer
 
-        lea rsi, [rel utils_space]
-        call printString
+        lea rdi, [rax]                            ; Load adress of element
+        call printFloat                           ; Print element
 
-        pop rdi
-        pop rdx
+        lea rdi, [rel utils_space]                ; Load space
+        call printString                          ; Print space
 
-        inc rdx
+        pop rdi                                   ; Restore array pointer
+        pop rcx                                   ; Restore counter
+        inc rcx                                   ; Increment counter
 
-        jmp loopFloatArray
+        jmp loopFloatArray                        ; Loop
 
     endloopFloatArray: 
-        pop rdi
-        pop rdx
 
         ret
