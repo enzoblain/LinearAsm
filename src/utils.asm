@@ -7,6 +7,12 @@
 %define SYS_WRITE 0x02000004
 
 section .data
+    ; Define types of print
+    utils_stringType dq 0
+    utils_intType dq 1
+    utils_floatType dq 2
+    utils_intArrayType dq 3
+    utils_floatArrayType dq 4
     ; Define strings that would be used
     utils_backline db 0x0A, 0
     utils_negative_sign db '-', 0
@@ -28,11 +34,33 @@ section .bss
 
 section .text
     ; Export functions
+    global print
     global printInt
     global printString
     global printFloat
     global printIntArray
     global printFloatArray
+
+; --------------------- Print Function ---------------------
+; Needs to be called with rdi pointing to the string to print
+; and rsi pointing to the type of the print
+print:
+    cmp rsi, [rel utils_stringType]               ; Check if string
+    je printString                                ; If string, print string
+
+    cmp rsi, [rel utils_intType]                  ; Check if integer
+    je printInt                                   ; If integer, print integer
+
+    cmp rsi, [rel utils_floatType]                ; Check if float
+    je printFloat                                 ; If float, print float
+
+    cmp rsi, [rel utils_intArrayType]             ; Check if integer array
+    je printIntArray                              ; If integer array, print integer array
+
+    cmp rsi, [rel utils_floatArrayType]           ; Check if float array
+    je printFloatArray                            ; If float array, print float array
+
+    ret
 
 ; --------------------- Print String Function ---------------------
 ; Needs to be called with rdi pointing to the string to print

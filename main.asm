@@ -1,4 +1,11 @@
 section .data
+    ; Define types of print
+    stringType dq 0
+    intType dq 1
+    floatType dq 2
+    intArrayType dq 3
+    floatArrayType dq 4
+    
     ; Define the welcome message
     welcomemsg db '+--------------------------------------------------+', 0x0A, \
                 '|    LinearASM - Linear Regression in Assembly     |', 0x0A, \
@@ -20,11 +27,7 @@ section .text
     global _start
 
     ; Import functions from utils.asm
-    extern printInt
-    extern printString
-    extern printFloat
-    extern printIntArray
-    extern printFloatArray
+    extern print
 
     ; Import linear regression function
     extern linearRegression
@@ -32,7 +35,8 @@ section .text
 _start:
     ; Print welcome message
     lea rdi, [rel welcomemsg] ; Load the address of the welcome message
-    call printString          ; Call the printString function
+    mov rsi, [rel stringType] ; Load the type of the print
+    call print                ; Call the printString function
 
 _exit:
     mov [rel saved_rsp], rsp  ; Save the stack pointer
