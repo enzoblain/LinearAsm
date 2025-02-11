@@ -1,7 +1,6 @@
 section .data
-    linearRegression_max_iterations dq -1000
+    linearRegression_max_iterations dq 10000
     linearRegression_learning_rate dq 0.01
-    linearRegression_convergence_threshold dq 0.00001
 
     linearRegression_predicted dq 0.0, 0.0, 0.0, 0.0, 0.0, 0x0A
     linearRegression_weight dq 2.2
@@ -9,28 +8,63 @@ section .data
     linearRegression_bias dq 1.0
     linearRegression_derivative_bias dq 0.0
     linearRegression_loss dq 0.0
+    linearRegression_previous_loss dq -1000000000000000.0
 
-    linearRegression_zero dq 0.0
+    linearRegression_minus_one dq -1.0
     linearRegression_two dq 2.0
 
-    test1 dq 0.0
+    linearRegression_backline db 0x0A, 0
 
 section .text
     global linearRegression
     extern printInt
     extern printFloat
     extern printFloatArray
+    extern printString
 
 ; --------------------- Linear Regression Function ---------------------
 ; Needs to be called with r8 pointing to the x array and r9 pointing to the y array
+; Returns the weight in r8 and the bias in r9
 linearRegression:
-    call updatePredicted
-    call calculateLoss
+    xor rdx, rdx 
 
-    call derivativeWeight
-    call derivativeBias
+    linearRegressionLoop:
+        push rdx
 
-    ret
+        cmp rdx, qword [rel linearRegression_max_iterations]
+        jge endLinearRegressionLoop
+
+        call derivativeWeight
+        call derivativeBias
+
+        call updateWeight
+        call updateBias
+
+        call updatePredicted
+        call calculateLoss
+
+        pop rdx
+
+        movsd xmm0, qword [rel linearRegression_previous_loss]
+        movsd xmm1, qword [rel linearRegression_loss]
+
+        movsd qword [rel linearRegression_previous_loss], xmm1
+
+        subsd xmm0, xmm1
+
+        call floatAsboluteValue
+
+        inc rdx
+
+        jmp linearRegressionLoop
+
+    endLinearRegressionLoop:
+        pop rdx 
+
+        lea r8, [rel linearRegression_weight]
+        lea r9, [rel linearRegression_bias]
+
+        ret
 
 ; --------------------- Update Predicted Values ---------------------
 ; Needs to be called with r8 pointing to the x array
@@ -226,4 +260,44 @@ derivativeBias:
 
         movsd qword [rel linearRegression_derivative_bias], xmm0
 
+        ret
+
+; --------------------- Update Weight ---------------------
+updateWeight:
+    movsd xmm0, qword [rel linearRegression_weight]
+    movsd xmm1, qword [rel linearRegression_derivative_weight]
+    movsd xmm2, qword [rel linearRegression_learning_rate]
+
+    mulsd xmm1, xmm2             ; learning_rate * derivative_weight
+    subsd xmm0, xmm1             ; weight -= learning_rate * derivative_weight
+
+    movsd qword [rel linearRegression_weight], xmm0
+
+    ret
+
+; --------------------- Update Bias ---------------------
+updateBias:
+    movsd xmm0, qword [rel linearRegression_bias]
+    movsd xmm1, qword [rel linearRegression_derivative_bias]
+    movsd xmm2, qword [rel linearRegression_learning_rate]
+
+    mulsd xmm1, xmm2             ; learning_rate * derivative_bias
+    subsd xmm0, xmm1             ; bias -= learning_rate * derivative_bias
+
+    movsd qword [rel linearRegression_bias], xmm0
+
+    ret
+
+; --------------------- Absolute Value Function ---------------------
+; Needs to be called with rxmm0 pointing to the float value
+floatAsboluteValue:
+    cvtsd2si rax, xmm0
+
+    cmp rax, 0
+    jge endAbsoluteValue
+
+    movsd xmm1, qword [rel linearRegression_minus_one]
+    mulsd xmm0, xmm1
+
+    endAbsoluteValue:
         ret
