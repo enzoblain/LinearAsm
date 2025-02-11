@@ -13,8 +13,11 @@ section .data
     linearRegression_zero dq 0.0
     linearRegression_two dq 2.0
 
+    test1 dq 0.0
+
 section .text
     global linearRegression
+    extern printInt
     extern printFloat
     extern printFloatArray
 
@@ -57,16 +60,15 @@ updatePredicted:
 
         pop rax
 
-        cmp qword [rax + 8], 0x0A        ; Check for backline -> end of array (convention)
-        je endloopPredictionArray   
-
         pop rdx
         inc rdx
+
+        cmp qword [rax + 8], 0x0A        ; Check for backline -> end of array (convention)
+        je endloopPredictionArray   
 
         jmp loopPredictionArray
 
     endloopPredictionArray: 
-        pop rdx
 
     ret
 
@@ -152,15 +154,16 @@ derivativeWeight:
 
         movsd qword [rel linearRegression_derivative_weight], xmm3
 
-        cmp qword [rax + 8], 0x0A
+        pop rdx
+        inc rdx
+
+        cmp qword [rax], 0x0A
         je endDerivativeWeight
 
-        pop rdx
-        inc rdx
+        jmp derivativeWeightLoop
 
     endDerivativeWeight:
-        pop rdx
-        inc rdx
+        dec rdx
 
         movsd xmm0, qword [rel linearRegression_derivative_weight]
         cvtsi2sd xmm1, rdx
@@ -169,7 +172,7 @@ derivativeWeight:
 
         movsd qword [rel linearRegression_derivative_weight], xmm0
 
-        ret
+    ret
 
 derivativeBias:
     xor rdx, rdx
@@ -204,21 +207,22 @@ derivativeBias:
         addsd xmm3, xmm0                ; derivative_bias += (predicted - y)
 
         movsd qword [rel linearRegression_derivative_bias], xmm3
-
-        cmp qword [rax + 8], 0x0A
-        je endDerivativeWeight
-
+        
         pop rdx
         inc rdx
+
+        cmp qword [rax], 0x0A
+        je endDerivativeBias
+
+        jmp derivativeBiasLoop
 
     endDerivativeBias:
-        pop rdx
-        inc rdx
+        dec rdx
 
         movsd xmm0, qword [rel linearRegression_derivative_bias]
         cvtsi2sd xmm1, rdx
-        divsd xmm0, xmm1               ; derivative_weight /= len(y)
-        mulsd xmm0, qword [rel linearRegression_two] ; derivative_weight *= 2
+        divsd xmm0, xmm1               ; derivative_bias /= len(y)
+        mulsd xmm0, qword [rel linearRegression_two] ; derivative_bias *= 2
 
         movsd qword [rel linearRegression_derivative_bias], xmm0
 
