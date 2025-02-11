@@ -2,7 +2,7 @@ section .data
     welcomemsg db '+--------------------------------------------------+', 0x0A, \
                 '|    LinearASM - Linear Regression in Assembly     |', 0x0A, \
                 '|                Author: Enzo Blain                |', 0x0A, \
-                '|                  Version: 0.0.1                  |', 0x0A, \
+                '|                   Version: 1.0                   |', 0x0A, \
                 '+--------------------------------------------------+', 0x0A, 0
 
     lgth db 'Length of the array :', 0

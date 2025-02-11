@@ -11,7 +11,7 @@ clang -o main main.o src/utils.o src/linearRegression.o -nostartfiles -arch x86_
 # Check if linking was successful
 if [ $? -eq 0 ]; then
     ./main # Run the executable
-    # lldb ./main -o "breakpoint set --name breakpoint" -o "run" -o "register read xmm1 xmm3" -o "quit" -o "Y"
+    # lldb ./main -o "breakpoint set --name breakpoint" -o "run"
 
     # Clean up object and executable files
     rm main main.o src/utils.o src/linearRegression.o
