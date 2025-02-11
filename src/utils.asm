@@ -83,7 +83,7 @@ negative_case_float:
     movsd xmm3, qword [rel utils_zero_float]
 
     ucomisd xmm1, xmm3                 ; Compare the float with 0
-    ja positive_case_float
+    jge positive_case_float
 
     lea rsi, [rel utils_negative_sign]
     call printString
