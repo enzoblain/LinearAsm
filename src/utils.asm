@@ -145,6 +145,12 @@ printFloat:
     cvtsd2si rax, xmm1             ; Convert float to int (trunc)
     cvtsi2sd xmm2, rax             ; Store the entire part 
 
+    ucomisd xmm1, xmm2             ; Compare the float with the entire part
+    ja good_trunc                  
+
+    addsd xmm2, qword [rel utils_minus_one] ; If the float is less than the entire part, decrement the entire part because the trunc is wrong
+
+good_trunc:
     subsd xmm1, xmm2               ; Get the decimal part
     mulsd xmm1, xmm0               ; Multiply the decimal part by 10^decimalpart to get the wanted decimal part
 
