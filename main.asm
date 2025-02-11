@@ -11,7 +11,9 @@ section .data
     backline db 0x0A, 0
 
     x dq 1.0, 2.0, 3.0, 4.0, 5.0, 0x0A
-    y dq 5.0, 4.0, 3., 2, 1, 0x0A
+    y dq 1.0, 2.0, 3.0, 4.0, 5.0, 0x0A
+
+    tes dq 3.65
 
 section .text
     global _start
