@@ -5,13 +5,6 @@ section .data
     floatType dq 2
     intArrayType dq 3
     floatArrayType dq 4
-    
-    ; Define the welcome message
-    welcomemsg db '+--------------------------------------------------+', 0x0A, \
-                '|    LinearASM - Linear Regression in Assembly     |', 0x0A, \
-                '|                Author: Enzo Blain                |', 0x0A, \
-                '|                   Version: 1.1                   |', 0x0A, \
-                '+--------------------------------------------------+', 0x0A, 0
 
     ; Define strings that would be used
     backline db 0x0A, 0
@@ -19,6 +12,10 @@ section .data
     ; Define tha arrays for the linear regression
     x dq 1.0, 2.0, 3.0, 4.0, 5.0, 0x0A
     y dq -0.5, -1.5, -2.5, -3.5, -4.5, 0x0A
+
+    ; Define the variables for the linear regression
+    weight dq 0.0
+    bias dq 0.0
 
 section .bss
     saved_rsp resq 1          ; Save the stack pointer
@@ -33,14 +30,24 @@ section .text
     extern linearRegression
 
 _start:
-    ; Print welcome message
-    lea rdi, [rel welcomemsg] ; Load the address of the welcome message
-    mov rsi, [rel stringType] ; Load the type of the print
-    call print                ; Call the printString function
-
     lea rdi, [rel x]           ; Load the address of the x array
     lea rsi, [rel y]           ; Load the address of the y array
     call linearRegression     ; Call the linear regression function
+
+    mov [rel weight], rax        ; Save the weight
+    mov [rel bias], rdx          ; Save the bias
+
+    lea rdi, [rel weight]
+    mov rsi, [rel floatType]
+    call print
+
+    lea rdi, [rel backline]
+    mov rsi, [rel stringType]
+    call print
+
+    lea rdi, [rel bias]
+    mov rsi, [rel floatType]
+    call print
 
 _exit:
     mov [rel saved_rsp], rsp  ; Save the stack pointer
