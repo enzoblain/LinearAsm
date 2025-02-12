@@ -13,6 +13,7 @@ section .data
     utils_floatType dq 2
     utils_intArrayType dq 3
     utils_floatArrayType dq 4
+    
     ; Define strings that would be used
     utils_backline db 0x0A, 0
     utils_negative_sign db '-', 0

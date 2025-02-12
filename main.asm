@@ -38,6 +38,10 @@ _start:
     mov rsi, [rel stringType] ; Load the type of the print
     call print                ; Call the printString function
 
+    lea rdi, [rel x]           ; Load the address of the x array
+    lea rsi, [rel y]           ; Load the address of the y array
+    call linearRegression     ; Call the linear regression function
+
 _exit:
     mov [rel saved_rsp], rsp  ; Save the stack pointer
     mov rsp, [rel saved_rsp]  ; Restore the stack pointer

@@ -1,38 +1,43 @@
 section .data
+    ; Define linear regression constants
     linearRegression_max_iterations dq 10000
     linearRegression_learning_rate dq 0.01
 
+    ; Define numbers that would be used
+    linearRegression_minus_one dq -1.0
+    linearRegression_two dq 2.0
+
+    ; Linear Regression Variables
+    linearRegression_x dq 0.0, 0.0, 0.0, 0.0, 0.0, 0x0A
+    linearRegression_y dq 0.0, 0.0, 0.0, 0.0, 0.0, 0x0A
     linearRegression_predicted dq 0.0, 0.0, 0.0, 0.0, 0.0, 0x0A
     linearRegression_weight dq 2.2
     linearRegression_derivative_weight dq 0.0
     linearRegression_bias dq 1.0
     linearRegression_derivative_bias dq 0.0
     linearRegression_loss dq 0.0
-    linearRegression_previous_loss dq -1000000000000000.0
 
-    linearRegression_minus_one dq -1.0
-    linearRegression_two dq 2.0
-
-    linearRegression_backline db 0x0A, 0
+    floatArrayType dq 4
 
 section .text
     global linearRegression
-    extern printInt
-    extern printFloat
-    extern printFloatArray
-    extern printString
+    extern print
 
 ; --------------------- Linear Regression Function ---------------------
-; Needs to be called with r8 pointing to the x array and r9 pointing to the y array
-; Returns the weight in r8 and the bias in r9
+; Needs to be called with rdi pointing to the x array and rsi pointing to the y array
+; Returns the weight in rax and the bias in rdx
 linearRegression:
-    xor rdx, rdx 
+    mov [rel linearRegression_x], rdi                       ; Save the x array
+    mov [rel linearRegression_y], rsi                       ; Save the y array
+    mov [rel linearRegression_predicted], rsi               ; Save the predicted array
+
+    xor rcx, rcx                                            ; Initialize the iteration counter
 
     linearRegressionLoop:
-        push rdx
+        cmp rcx, qword [rel linearRegression_max_iterations] ; Check if the max iterations has been reached
+        jge endLinearRegressionLoop                          ; If yes, exit the loop
 
-        cmp rdx, qword [rel linearRegression_max_iterations]
-        jge endLinearRegressionLoop
+        push rcx                                            ; Save the iteration counter
 
         call derivativeWeight
         call derivativeBias
@@ -43,116 +48,89 @@ linearRegression:
         call updatePredicted
         call calculateLoss
 
-        pop rdx
+        pop rcx                                              ; Restore the iteration counter
+        inc rcx                                              ; Increment the iteration counter
 
-        movsd xmm0, qword [rel linearRegression_previous_loss]
-        movsd xmm1, qword [rel linearRegression_loss]
-
-        movsd qword [rel linearRegression_previous_loss], xmm1
-
-        subsd xmm0, xmm1
-
-        call floatAsboluteValue
-
-        inc rdx
-
-        jmp linearRegressionLoop
+        jmp linearRegressionLoop                             ; Else, continue the loop
 
     endLinearRegressionLoop:
-        pop rdx 
-
-        lea r8, [rel linearRegression_weight]
-        lea r9, [rel linearRegression_bias]
+        lea rax, [rel linearRegression_weight]
+        lea rdx, [rel linearRegression_bias]
 
         ret
 
 ; --------------------- Update Predicted Values ---------------------
-; Needs to be called with r8 pointing to the x array
 updatePredicted:
-    xor rdx, rdx
+    xor rcx, rcx                                              ; Initialize the iteration counter
 
     loopPredictionArray:
-        push rdx
+        mov rdi, [rel linearRegression_x]               ; Load predicted array pointer
+        lea rax, [rdi + rcx * 8]                              ; Load array pointer
+        breakpoint: 
 
-        lea rax, [r8]                ; Load array pointer
-        shl rdx, 3                   ; Multiply index by 8 (because of qword)
-        add rax, rdx                 ; Add index to pointer to get the address of the element
+        cmp qword [rax], 0x0A                                 ; Check for backline
+        je endloopPredictionArray                             ; If backline, end of array (convention)
 
-        movsd xmm0, qword [rax]         ; Load x value
-        movsd xmm1, qword [rel linearRegression_weight] ; Load weight
-        movsd xmm2, qword [rel linearRegression_bias] ; Load bias
+        movsd xmm0, qword [rax]                     ; Load x value
+        movsd xmm1, qword [rel linearRegression_weight]       ; Load weight
+        movsd xmm2, qword [rel linearRegression_bias]         ; Load bias
 
-        mulsd xmm0, xmm1              ; x * weight
-        addsd xmm0, xmm2              ; x * weight + bias
+        mulsd xmm0, xmm1                                      ; x * weight
+        addsd xmm0, xmm2                                      ; x * weight + bias
+    
+        lea rax, [rel linearRegression_predicted]             ; Load predicted array pointer
+        movsd qword [rax + rcx * 8], xmm0                     ; Store predicted value
 
-        push rax
+        inc rcx                                               ; Increment the iteration counter
 
-        lea rax, [rel linearRegression_predicted]    
-        add rax, rdx
-
-        movsd qword [rax], xmm0      ; Store predicted value
-
-        pop rax
-
-        pop rdx
-        inc rdx
-
-        cmp qword [rax + 8], 0x0A        ; Check for backline -> end of array (convention)
-        je endloopPredictionArray   
-
-        jmp loopPredictionArray
+        jmp loopPredictionArray                               ; Continue the loop
 
     endloopPredictionArray: 
-
-    ret
+        ret
 
 ; --------------------- Calculate Loss Function ---------------------
-; Needs to be called with r8 pointing to the x array and r9 pointing to the y array
 calculateLoss:
-    xor rdx, rdx
+    xor rcx, rcx                                              ; Initialize the iteration counter
 
     loopLoss:
-        push rdx
-    
-        lea rax, [rel linearRegression_predicted]
-        shl rdx, 3
-        add rax, rdx
+        mov rdi, [rel linearRegression_x]                     ; Load x array pointer
+        lea rax, [rdi + rcx * 8]                              ; Load array pointer
 
-        movsd xmm0, qword [rax]         ; Load predicted value
+        cmp qword [rax], 0x0A                                 ; Check for backline
+        je endLoopLoss                                        ; If backline, end of array (convention)
         
-        lea rax, [r9]
-        add rax, rdx
+        push rcx                                              ; Save the iteration counter                                         
 
-        movsd xmm1, qword [rax]         ; Load y value
+        movsd xmm0, qword [rax]                               ; Load predicted value
+        
+        mov rdi, [rel linearRegression_y]                     ; Load y array pointer
+        lea rax, [rdi + rcx * 8]                              ; Load y value pointer      
 
-        subsd xmm0, xmm1                ; predicted - y
-        mulsd xmm0, xmm0                ; (predicted - y) ^ 2
+        movsd xmm1, qword [rax]                               ; Load y value
 
-        movsd xmm3, qword [rel linearRegression_loss]
-        addsd xmm3, xmm0                ; loss += (predicted - y) ^ 2
+        subsd xmm0, xmm1                                      ; predicted - y
+        mulsd xmm0, xmm0                                      ; (predicted - y) ^ 2
 
-        movsd qword [rel linearRegression_loss], xmm3
+        movsd xmm3, qword [rel linearRegression_loss]         ; Load loss
+        addsd xmm3, xmm0                                      ; loss += (predicted - y) ^ 2
 
-        cmp qword [rax + 8], 0x0A
-        je endLoopLoss
+        movsd qword [rel linearRegression_loss], xmm3         ; Store loss
 
-        pop rdx
-        inc rdx
+        pop rcx                                               ; Restore the iteration counter
+        inc rcx                                               ; Increment the iteration counter
 
-    jmp loopLoss
+        jmp loopLoss                                          ; Continue the loop
 
     endLoopLoss:
-        pop rdx
-        add rdx, 1
+        movsd xmm0, qword [rel linearRegression_loss]         ; Load loss
+        cvtsi2sd xmm1, rcx                                    ; Convert iteration counter to double
+        divsd xmm0, xmm1                                      ; loss /= len(y)
 
-        movsd xmm0, qword [rel linearRegression_loss]
-        cvtsi2sd xmm1, rdx
-        divsd xmm0, xmm1               ; loss /= len(y)
-
-        movsd qword [rel linearRegression_loss], xmm0
+        movsd qword [rel linearRegression_loss], xmm0         ; Store loss
 
     ret
 
+; --------------------- Calculate Derivative Weight ---------------------
 derivativeWeight:
     xor rdx, rdx
 
@@ -170,12 +148,14 @@ derivativeWeight:
 
         movsd xmm0, qword [rax]         ; Load predicted value
 
-        lea rax, [r9]
+        mov rsi, [rel linearRegression_y]
+        lea rax, [rsi]
         add rax, rdx
 
         movsd xmm1, qword [rax]         ; Load y value
 
-        lea rax, [r8]
+        mov rsi, [rel linearRegression_x]
+        lea rax, [rsi]
         add rax, rdx
 
         movsd xmm2, qword [rax]         ; Load x value
@@ -225,12 +205,14 @@ derivativeBias:
 
         movsd xmm0, qword [rax]         ; Load predicted value
 
-        lea rax, [r9]
+        mov rsi, [rel linearRegression_y]
+        lea rax, [rsi]
         add rax, rdx
 
         movsd xmm1, qword [rax]         ; Load y value
 
-        lea rax, [r8]
+        mov rsi, [rel linearRegression_x]
+        lea rax, [rsi]
         add rax, rdx
 
         movsd xmm2, qword [rax]         ; Load x value
@@ -289,7 +271,6 @@ updateBias:
     ret
 
 ; --------------------- Absolute Value Function ---------------------
-; Needs to be called with rxmm0 pointing to the float value
 floatAsboluteValue:
     cvtsd2si rax, xmm0
 
@@ -300,4 +281,5 @@ floatAsboluteValue:
     mulsd xmm0, xmm1
 
     endAbsoluteValue:
+
         ret
