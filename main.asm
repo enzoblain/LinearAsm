@@ -30,12 +30,12 @@ section .text
     extern linearRegression
 
 _start:
-    lea rdi, [rel x]           ; Load the address of the x array
-    lea rsi, [rel y]           ; Load the address of the y array
+    lea rdi, [rel x]          ; Load the address of the x array
+    lea rsi, [rel y]          ; Load the address of the y array
     call linearRegression     ; Call the linear regression function
 
-    mov [rel weight], rax        ; Save the weight
-    mov [rel bias], rdx          ; Save the bias
+    mov [rel weight], rax     ; Save the weight
+    mov [rel bias], rdx       ; Save the bias
 
     lea rdi, [rel weight]
     mov rsi, [rel floatType]

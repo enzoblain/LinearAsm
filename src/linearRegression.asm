@@ -4,19 +4,16 @@ section .data
     linearRegression_learning_rate dq 0.01
 
     ; Define numbers that would be used
-    linearRegression_minus_one dq -1.0
-    linearRegression_two dq 2.0
+    linearRegression_sixteen dq 16.0
+    linearRegression_eight dq 8.0
 
     ; Linear Regression Variables
     linearRegression_predicted dq 0.0, 0.0, 0.0, 0.0, 0.0, 0x0A
-    linearRegression_weight dq 2.2
+    linearRegression_weight dq 0.0
     linearRegression_derivative_weight dq 0.0
-    linearRegression_bias dq 1.0
+    linearRegression_bias dq 0.0
     linearRegression_derivative_bias dq 0.0
     linearRegression_loss dq 0.0
-
-    floatArrayType dq 4
-    floatType dq 2
 
 section .bss
     ; Reserve space for the x and y arrays
@@ -25,7 +22,6 @@ section .bss
 
 section .text
     global linearRegression
-    extern print
 
 ; --------------------- Linear Regression Function ---------------------
 ; Needs to be called with rdi pointing to the x array and rsi pointing to the y array
@@ -65,7 +61,7 @@ updatePredicted:
 
     loopPredictionArray:
         mov rdi, [rel linearRegression_x]                          ; Copy x array pointer to rdi
-        lea rax, [rdi + rcx * 8]                                   ; Load array pointer
+        lea rax, [rdi + rcx]                                       ; Load array pointer
         breakpoint: 
 
         cmp qword [rax], 0x0A                                      ; Check for backline
@@ -79,9 +75,9 @@ updatePredicted:
         addsd xmm0, xmm2                                           ; x * weight + bias
     
         lea rax, [rel linearRegression_predicted]                  ; Load predicted array pointer in rax
-        movsd qword [rax + rcx * 8], xmm0                          ; Store predicted value
+        movsd qword [rax + rcx], xmm0                              ; Store predicted value
 
-        inc rcx                                                    ; Increment the iteration counter
+        add rcx, 8                                                 ; Increment the iteration counter
 
         jmp loopPredictionArray                                    ; Continue the loop
 
@@ -94,7 +90,7 @@ calculateLoss:
 
     loopLoss:
         mov rdi, [rel linearRegression_x]                          ; Load x array pointer
-        lea rax, [rdi + rcx * 8]                                   ; Load array pointer
+        lea rax, [rdi + rcx]                                       ; Load array pointer
 
         cmp qword [rax], 0x0A                                      ; Check for backline
         je endLoopLoss                                             ; If backline, end of array (convention)                                       
@@ -102,7 +98,7 @@ calculateLoss:
         movsd xmm0, qword [rax]                                    ; Load predicted value
         
         mov rdi, [rel linearRegression_y]                          ; Load y array pointer
-        lea rax, [rdi + rcx * 8]                                   ; Load y value pointer      
+        lea rax, [rdi + rcx]                                       ; Load y value pointer      
 
         movsd xmm1, qword [rax]                                    ; Load y value
 
@@ -114,7 +110,7 @@ calculateLoss:
 
         movsd qword [rel linearRegression_loss], xmm3              ; Store loss
 
-        inc rcx                                                    ; Increment the iteration counter
+        add rcx, 8                                                 ; Increment the iteration counter
 
         jmp loopLoss                                               ; Continue the loop
 
@@ -122,7 +118,7 @@ calculateLoss:
         movsd xmm0, qword [rel linearRegression_loss]              ; Load loss
         cvtsi2sd xmm1, rcx                                         ; Convert iteration counter to double
         divsd xmm0, xmm1                                           ; loss /= len(y)
-
+        mulsd xmm0, qword [rel linearRegression_eight]             ; Divide by 8 because rcx is incremented by 8 for byte array
         movsd qword [rel linearRegression_loss], xmm0              ; Store loss
 
     ret
@@ -137,18 +133,18 @@ calculDerivativeWeight:
     calculDerivativeWeightLoop:
         lea rax, [rel linearRegression_predicted]                  ; Load predicted array pointer in rax
 
-        cmp qword [rax + rcx * 8], 0x0A                            ; Check for backline
+        cmp qword [rax + rcx], 0x0A                                ; Check for backline
         je endCalculDerivativeWeight                               ; If backline, end of array (convention)
 
-        movsd xmm0, qword [rax + rcx * 8]                          ; Load predicted value
+        movsd xmm0, qword [rax + rcx]                              ; Load predicted value
 
         mov rsi, [rel linearRegression_y]                          ; Load y array pointer in rsi
         lea rax, [rsi]                                             ; Load y array pointer
-        movsd xmm1, qword [rax + rcx * 8]                          ; Load y value
+        movsd xmm1, qword [rax + rcx]                              ; Load y value
 
         mov rsi, [rel linearRegression_x]                          ; Load x array pointer in rsi
         lea rax, [rsi]                                             ; Load x array pointer
-        movsd xmm2, qword [rax + rcx * 8]                          ; Load x value
+        movsd xmm2, qword [rax + rcx]                              ; Load x value
 
         subsd xmm0, xmm1                                           ; predicted - y
         mulsd xmm0, xmm2                                           ; (predicted - y) * x
@@ -158,7 +154,7 @@ calculDerivativeWeight:
 
         movsd qword [rel linearRegression_derivative_weight], xmm3 ; Store derivative_weight
 
-        inc rcx                                                    ; Increment the iteration counter
+        add rcx, 8                                                 ; Increment the iteration counter
 
         jmp calculDerivativeWeightLoop                             ; Continue the loop
 
@@ -166,8 +162,7 @@ calculDerivativeWeight:
         movsd xmm0, qword [rel linearRegression_derivative_weight] ; Load derivative_weight
         cvtsi2sd xmm1, rcx                                         ; Convert iteration counter to double
         divsd xmm0, xmm1                                           ; derivative_weight /= len(y)
-        mulsd xmm0, qword [rel linearRegression_two]               ; derivative_weight *= 2
-
+        mulsd xmm0, qword [rel linearRegression_sixteen]           ; Divide by 16 because rcx is incremented by 8 for byte array and formula is 2 * sum(x * (predicted - y))
         movsd qword [rel linearRegression_derivative_weight], xmm0 ; Store derivative_weight
 
     ret
@@ -181,18 +176,18 @@ calculDerivativeBias:
     calculDerivativeBiasLoop:
         lea rax, [rel linearRegression_predicted]                  ; Load predicted array pointer in rax
 
-        cmp qword [rax + rcx * 8], 0x0A                            ; Check for backline
+        cmp qword [rax + rcx], 0x0A                                ; Check for backline
         je endCalculDerivativeBias                                 ; If backline, end of array (convention)
 
-        movsd xmm0, qword [rax + rcx * 8]                          ; Load predicted value
+        movsd xmm0, qword [rax + rcx]                              ; Load predicted value
 
         mov rsi, [rel linearRegression_y]                          ; Load y array pointer in rsi
         lea rax, [rsi]                                             ; Load y array pointer
-        movsd xmm1, qword [rax + rcx * 8]                          ; Load y value
+        movsd xmm1, qword [rax + rcx]                              ; Load y value
 
         mov rsi, [rel linearRegression_x]                          ; Load x array pointer in rsi
         lea rax, [rsi]                                             ; Load x array pointer
-        movsd xmm2, qword [rax + rcx * 8]                          ; Load x value
+        movsd xmm2, qword [rax + rcx]                              ; Load x value
 
         subsd xmm0, xmm1                                           ; predicted - y
 
@@ -201,7 +196,7 @@ calculDerivativeBias:
 
         movsd qword [rel linearRegression_derivative_bias], xmm3   ; Store derivative_bias
         
-        inc rcx                                                    ; Increment the iteration counter
+        add rcx, 8                                                 ; Increment the iteration counter
 
         jmp calculDerivativeBiasLoop                               ; Continue the loop
 
@@ -209,7 +204,7 @@ calculDerivativeBias:
         movsd xmm0, qword [rel linearRegression_derivative_bias]   ; Load derivative_bias
         cvtsi2sd xmm1, rcx                                         ; Convert iteration counter to double
         divsd xmm0, xmm1                                           ; derivative_bias /= len(y)
-        mulsd xmm0, qword [rel linearRegression_two]               ; derivative_bias *= 2
+        mulsd xmm0, qword [rel linearRegression_sixteen]           ; Divide by 16 because rcx is incremented by 8 for byte array and formula is 2 * sum(predicted - y)
 
         movsd qword [rel linearRegression_derivative_bias], xmm0   ; Store derivative_bias
 
